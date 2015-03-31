@@ -127,3 +127,4 @@ Android.bp
 clang/
 out/
 log.txt
+out/
