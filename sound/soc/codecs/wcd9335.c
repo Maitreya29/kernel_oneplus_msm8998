@@ -4055,6 +4055,7 @@ static void tasha_codec_hph_post_pa_config(struct tasha_priv *tasha,
 	case SND_SOC_DAPM_POST_PMU:
 		switch (mode) {
 		case CLS_H_HIFI:
+		case CLS_AB:
 			scale_val = 0x3;
 			break;
 		case CLS_H_LOHIFI:
@@ -4594,6 +4595,7 @@ static void tasha_codec_hph_mode_config(struct snd_soc_codec *codec,
 		tasha_codec_hph_lohifi_config(codec, event);
 		break;
 	case CLS_H_HIFI:
+	case CLS_AB:
 		tasha_codec_hph_hifi_config(codec, event);
 		break;
 	}
