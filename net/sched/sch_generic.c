@@ -278,9 +278,6 @@ static void dev_watchdog(unsigned long arg)
 	struct net_device *dev = (struct net_device *)arg;
 
 	netif_tx_lock(dev);
-	if (!dev->watchdog_timeo)
-		return;
-
 	if (!qdisc_tx_is_noop(dev)) {
 		if (netif_device_present(dev) &&
 		    netif_running(dev) &&
@@ -306,8 +303,16 @@ static void dev_watchdog(unsigned long arg)
 				}
 			}
 
-			if (some_queue_timedout)
+			/* The noise is pissing off our CI and upstream doesn't
+			 * move on the bug report:
+			 *
+			 * https://bugzilla.kernel.org/show_bug.cgi?id=196399
+			 */
+			if (some_queue_timedout && 0) {
+				WARN_ONCE(1, KERN_INFO "NETDEV WATCHDOG: %s (%s): transmit queue %u timed out\n",
+				       dev->name, netdev_drivername(dev), i);
 				dev->netdev_ops->ndo_tx_timeout(dev);
+			}
 			if (!mod_timer(&dev->watchdog_timer,
 				       round_jiffies(jiffies +
 						     dev->watchdog_timeo)))
@@ -321,11 +326,8 @@ static void dev_watchdog(unsigned long arg)
 
 void __netdev_watchdog_up(struct net_device *dev)
 {
-	if (!dev->watchdog_timeo)
-		return;
-
 	if (dev->netdev_ops->ndo_tx_timeout) {
-		if (dev->watchdog_timeo < 0)
+		if (dev->watchdog_timeo <= 0)
 			dev->watchdog_timeo = 5*HZ;
 		if (!mod_timer(&dev->watchdog_timer,
 			       round_jiffies(jiffies + dev->watchdog_timeo)))
