@@ -2288,14 +2288,9 @@ static unsigned long __zs_compact(struct zs_pool *pool,
 				   struct size_class *class)
 {
 	struct zs_compact_control cc;
-<<<<<<< HEAD
 	struct zspage *src_zspage;
 	struct zspage *dst_zspage = NULL;
-=======
-	struct page *src_page;
-	struct page *dst_page = NULL;
 	unsigned long pages_freed = 0;
->>>>>>> a5625972900e987ee082a07472dd68b637bf0fd4
 
 	spin_lock(&class->lock);
 	while ((src_zspage = isolate_zspage(class, true))) {

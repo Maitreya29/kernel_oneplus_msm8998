@@ -128,3 +128,4 @@ clang/
 out/
 log.txt
 out/
+buildscript.sh
