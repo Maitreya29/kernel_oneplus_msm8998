@@ -52,7 +52,7 @@ function finerr() {
 
 # Compiling build
 function compile() {
-   make O=out ARCH=arm64 phoenix_defconfig
+   make O=out ARCH=arm64 tanjiro_defconfig
        make -j$(nproc --all) O=out \
                       CC=clang \
                       CROSS_COMPILE=aarch64-linux-gnu- \
