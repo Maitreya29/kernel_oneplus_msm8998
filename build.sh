@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
+echo "Sending message"
+
+curl -s -X POST -d chat_id="${chat_id}" -d parse_mode=html -d text="DO YOU HABE A PIZA PLJ" https://api.telegram.org/bot"${token}"/sendMessage
 
 echo "Cloning dependencies"
 
 git clone --depth=1 https://github.com/Maitreya29/TanjiroKernelOP5-T.git -b custom2 kernel
 cd kernel
 git clone --depth=1 https://github.com/kdrag0n/proton-clang clang
-
+git clone --depth=1 https://github.com/Maitreya29/AnyKernel AnyKernel
 echo "Done"
 
 IMAGE=$(pwd)/out/arch/arm64/boot/Image.gz-dtb
@@ -19,13 +22,13 @@ export ARCH=arm64
 export KBUILD_BUILD_HOST="Tanjiro"
 export KBUILD_BUILD_USER="Maitreya29"
 
+
+
 # Header
 function header() {
-    curl -s -X POST "https://api.telegram.org/bot$token/sendPhoto" \
-        -d photo=$url \
+    curl -s -X POST "https://api.telegram.org/bot$token/sendMessage" \
         -d chat_id=$chat_id \
-        -d "parse_mode=html" \
-	-d caption="<b>• Tanjiro Kernel •</b>%0ABuild started on <code>CI</code>%0A <b>For device</b> <i>OnePlus 5/5T</i>%0A<b>branch:-</b> <code>$BRANCH</code>(master)%0A<b>Under commit</b> <code>$(git log --pretty=format:'"%h : %s"' -1)</code>%0A<b>Using compiler:- </b> <code>$CLANG_VERSION</code>%0A<b>Started on:- </b> <code>$(date)</code>"
+        -d text="<b>• Tanjiro Kernel •</b>%0ABuild started on <code>CI</code>%0A <b>For device</b> <i>OnePlus 5/5T</i>%0A<b>branch:-</b> <code>$BRANCH</code>(master)%0A<b>Under commit</b> <code>$(git log --pretty=format:'"%h : %s"' -1)</code>%0A<b>Using compiler:- </b> <code>$CLANG_VERSION</code>%0A<b>Started on:- </b> <code>$(date)</code>"
 }
 
 # Push kernel to channel
