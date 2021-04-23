@@ -28,6 +28,7 @@ export KBUILD_BUILD_USER="Maitreya29"
 function header() {
     curl -s -X POST "https://api.telegram.org/bot$token/sendMessage" \
         -d chat_id=$chat_id \
+        -d "parse_mode=html" \
         -d text="<b>• Tanjiro Kernel •</b>%0ABuild started on <code>CI</code>%0A <b>For device</b> <i>OnePlus 5/5T</i>%0A<b>branch:-</b> <code>$BRANCH</code>(master)%0A<b>Under commit</b> <code>$(git log --pretty=format:'"%h : %s"' -1)</code>%0A<b>Using compiler:- </b> <code>$CLANG_VERSION</code>%0A<b>Started on:- </b> <code>$(date)</code>"
 }
 
