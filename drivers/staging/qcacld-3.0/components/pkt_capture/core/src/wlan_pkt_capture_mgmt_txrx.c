@@ -418,7 +418,7 @@ pkt_capture_mgmt_tx_completion(struct wlan_objmgr_pdev *pdev,
 /**
  * process_pktcapture_mgmt_rx_data_cb() -  process management rx packets
  * @rx_params: mgmt rx event params
- * @wbuf: netbuf
+ * @nbuf: netbuf
  *
  * Return: none
  */
