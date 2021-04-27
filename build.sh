@@ -5,7 +5,7 @@ curl -s -X POST -d chat_id="${chat_id}" -d parse_mode=html -d text="DO YOU HABE 
 
 echo "Cloning dependencies"
 
-git clone --depth=1 https://github.com/Maitreya29/TanjiroKernelOP5-T.git -b oldvib kernel
+git clone --depth=1 https://github.com/Maitreya29/TanjiroKernelOP5-T.git -b newvib kernel
 cd kernel
 git clone --depth=1 https://github.com/kdrag0n/proton-clang clang
 git clone --depth=1 https://github.com/Maitreya29/AnyKernel AnyKernel
