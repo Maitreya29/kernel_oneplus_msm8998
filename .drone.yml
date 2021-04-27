@@ -17,5 +17,5 @@ steps:
       - git config --global user.email "maitreyapatni30@gmail.com"
       - git config --global color.ui false
       - mkdir Nb && cd Nb
-      - wget https://raw.githubusercontent.com/Maitreya29/TanjiroKernelOP5-T/custom2/build.sh
+      - wget https://raw.githubusercontent.com/Maitreya29/TanjiroKernelOP5-T/oldvib/build.sh
       - bash build.sh
