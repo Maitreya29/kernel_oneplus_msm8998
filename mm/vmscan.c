@@ -3441,8 +3441,7 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
 			wake_up_all(&pgdat->pfmemalloc_wait);
 
 		/* Check if kswapd should be suspending */
-		if (try_to_freeze() || kthread_should_stop() ||
-		    !atomic_read(&pgdat->kswapd_waiters))
+		if (try_to_freeze() || kthread_should_stop())
 			break;
 
 		/*
@@ -3489,7 +3488,6 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int order,
 		 * allocation of the requested order possible.
 		 */
 		wakeup_kcompactd(pgdat, order, classzone_idx);
-
 
 		remaining = schedule_timeout(HZ/10);
 		finish_wait(&pgdat->kswapd_wait, &wait);
