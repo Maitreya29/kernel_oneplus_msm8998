@@ -422,7 +422,7 @@ int schedtune_can_attach(struct cgroup_taskset *tset)
 	struct task_struct *task;
 	struct cgroup_subsys_state *css;
 	struct boost_groups *bg;
-	struct rq_flags irq_flags;
+	unsigned long irq_flags;
 	unsigned int cpu;
 	struct rq *rq;
 	int src_bg; /* Source boost group index */
@@ -542,7 +542,7 @@ void schedtune_dequeue_task(struct task_struct *p, int cpu)
 void schedtune_exit_task(struct task_struct *tsk)
 {
 	struct schedtune *st;
-	struct rq_flags irq_flags;
+	unsigned long irq_flags;
 	unsigned int cpu;
 	struct rq *rq;
 	int idx;
@@ -611,7 +611,23 @@ int schedtune_task_boost(struct task_struct *p)
 	return task_boost;
 }
 
+/*  The same as schedtune_task_boost except assuming the caller has the rcu read
+ *  lock.
+ */
+int schedtune_task_boost_rcu_locked(struct task_struct *p)
+{
+	struct schedtune *st;
+	int task_boost;
 
+	if (unlikely(!schedtune_initialized))
+		return 0;
+
+	/* Get task boost value */
+	st = task_schedtune(p);
+	task_boost = max(st->boost, schedtune_adj_ta(p));
+
+	return task_boost;
+}
 
 int schedtune_prefer_idle(struct task_struct *p)
 {
