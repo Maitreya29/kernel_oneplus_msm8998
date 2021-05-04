@@ -1030,3 +1030,8 @@
 	pinctrl-1 = <&uart_console_deactive>;
 };
 /*Anderson-Config_UARTPIN_as_GPIO*]**/
+&soc {
+     restart@10ac000 {
+	     qcom,force-warm-reboot;
+     };
+};
