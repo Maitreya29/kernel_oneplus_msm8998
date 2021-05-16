@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -3117,6 +3117,14 @@ static int mdss_dsi_event_handler(struct mdss_panel_data *pdata,
 					&ctrl_pdata->dba_work, HZ);
 		}
 		break;
+	case MDSS_EVENT_PANEL_SET_HBM_MODE:
+		ctrl_pdata->hbm_mode = (int)(unsigned long) arg;
+		mdss_dsi_panel_set_hbm_mode(ctrl_pdata,
+		    (int)(unsigned long) ctrl_pdata->hbm_mode);
+		break;
+	case MDSS_EVENT_PANEL_GET_HBM_MODE:
+		rc = mdss_dsi_panel_get_hbm_mode(ctrl_pdata);
+		break;
 	case MDSS_EVENT_PANEL_SET_SRGB_MODE:
 		ctrl_pdata->SRGB_mode = (int)(unsigned long) arg;
 		if (ctrl_pdata->SRGB_mode == 1)
@@ -3364,7 +3372,7 @@ static struct device_node *mdss_dsi_config_panel(struct platform_device *pdev,
 	int ndx)
 {
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = platform_get_drvdata(pdev);
-	char panel_cfg[MDSS_MAX_PANEL_LEN];
+	char panel_cfg[MDSS_MAX_PANEL_LEN + 1];
 	struct device_node *dsi_pan_node = NULL;
 	int rc = 0;
 
@@ -3792,6 +3800,7 @@ static int mdss_dsi_ctrl_probe(struct platform_device *pdev)
 
 	pdata = &ctrl_pdata->panel_data;
 	init_completion(&pdata->te_done);
+	mutex_init(&pdata->te_mutex);
 	if (pdata->panel_info.type == MIPI_CMD_PANEL) {
 		if (!te_irq_registered) {
 			rc = devm_request_irq(&pdev->dev,
