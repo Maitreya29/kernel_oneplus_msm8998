@@ -185,7 +185,8 @@ static unsigned int dev_num = 1;
 static struct cdev wlan_hdd_state_cdev;
 static struct class *class;
 static dev_t device;
-#ifndef MODULE
+static bool hdd_loaded __read_mostly = false;
+
 static struct gwlan_loader *wlan_loader;
 static ssize_t wlan_boot_cb(struct kobject *kobj,
 			    struct kobj_attribute *attr,
@@ -204,7 +205,6 @@ static struct attribute *attrs[] = {
 	NULL,
 };
 #define MODULE_INITIALIZED 1
-#endif
 
 #define HDD_OPS_INACTIVITY_TIMEOUT (120000)
 #define MAX_OPS_NAME_STRING_SIZE 20
@@ -3539,25 +3539,23 @@ static int __hdd_open(struct net_device *dev)
 		   TRACE_CODE_HDD_OPEN_REQUEST,
 		   adapter->session_id, adapter->device_mode);
 
-	mutex_lock(&hdd_init_deinit_lock);
 	/* Nothing to be done if device is unloading */
 	if (cds_is_driver_unloading()) {
-		mutex_unlock(&hdd_init_deinit_lock);
 		hdd_err("Driver is unloading can not open the hdd");
 		return -EBUSY;
 	}
 
 	if (cds_is_driver_recovering()) {
-		mutex_unlock(&hdd_init_deinit_lock);
 		hdd_err("WLAN is currently recovering; Please try again.");
 		return -EBUSY;
 	}
 
 	if (qdf_atomic_read(&hdd_ctx->con_mode_flag)) {
-		mutex_unlock(&hdd_init_deinit_lock);
 		hdd_err("con_mode_handler is in progress; Please try again.");
 		return -EBUSY;
 	}
+
+	mutex_lock(&hdd_init_deinit_lock);
 	hdd_start_driver_ops_timer(eHDD_DRV_OP_IFF_UP);
 
 	/*
@@ -8216,32 +8214,6 @@ out:
 }
 
 /**
- * hdd_rx_wake_lock_destroy() - Destroy RX wakelock
- * @hdd_ctx:	HDD context.
- *
- * Destroy RX wakelock.
- *
- * Return: None.
- */
-static void hdd_rx_wake_lock_destroy(struct hdd_context *hdd_ctx)
-{
-	qdf_wake_lock_destroy(&hdd_ctx->rx_wake_lock);
-}
-
-/**
- * hdd_rx_wake_lock_create() - Create RX wakelock
- * @hdd_ctx:	HDD context.
- *
- * Create RX wakelock.
- *
- * Return: None.
- */
-static void hdd_rx_wake_lock_create(struct hdd_context *hdd_ctx)
-{
-	qdf_wake_lock_create(&hdd_ctx->rx_wake_lock, "qcom_rx_wakelock");
-}
-
-/**
  * hdd_context_deinit() - Deinitialize HDD context
  * @hdd_ctx:    HDD context.
  *
@@ -8258,8 +8230,6 @@ static int hdd_context_deinit(struct hdd_context *hdd_ctx)
 	wlan_hdd_cfg80211_deinit(hdd_ctx->wiphy);
 
 	hdd_sap_context_destroy(hdd_ctx);
-
-	hdd_rx_wake_lock_destroy(hdd_ctx);
 
 	hdd_scan_context_destroy(hdd_ctx);
 
@@ -9291,7 +9261,6 @@ void hdd_bus_bw_compute_reset_prev_txrx_stats(struct hdd_adapter *adapter)
 
 #endif /* MSM_PLATFORM */
 
-#ifdef WLAN_DEBUG
 static uint8_t *convert_level_to_string(uint32_t level)
 {
 	switch (level) {
@@ -9308,8 +9277,6 @@ static uint8_t *convert_level_to_string(uint32_t level)
 		return "INVAL";
 	}
 }
-#endif
-
 
 /**
  * wlan_hdd_display_tx_rx_histogram() - display tx rx histogram
@@ -10385,8 +10352,6 @@ static int hdd_context_init(struct hdd_context *hdd_ctx)
 	if (ret)
 		goto list_destroy;
 
-	hdd_rx_wake_lock_create(hdd_ctx);
-
 	ret = hdd_sap_context_init(hdd_ctx);
 	if (ret)
 		goto scan_destroy;
@@ -10410,7 +10375,6 @@ sap_destroy:
 
 scan_destroy:
 	hdd_scan_context_destroy(hdd_ctx);
-	hdd_rx_wake_lock_destroy(hdd_ctx);
 list_destroy:
 	qdf_list_destroy(&hdd_ctx->hdd_adapters);
 
@@ -12695,6 +12659,7 @@ int hdd_wlan_stop_modules(struct hdd_context *hdd_ctx, bool ftm_mode)
 		}
 	}
 
+	hdd_bus_bw_compute_timer_stop(hdd_ctx);
 	hdd_deregister_policy_manager_callback(hdd_ctx->psoc);
 
 	/* free user wowl patterns */
@@ -14196,6 +14161,9 @@ static void hdd_inform_wifi_off(void)
 	sme_free_blacklist(hdd_ctx->mac_handle);
 }
 
+static int hdd_driver_load(void);
+static int wlan_deinit_sysfs(void);
+
 static ssize_t wlan_hdd_state_ctrl_param_write(struct file *filp,
 						const char __user *user_buf,
 						size_t count,
@@ -14225,6 +14193,25 @@ static ssize_t wlan_hdd_state_ctrl_param_write(struct file *filp,
 	if (strncmp(buf, wlan_on_str, strlen(wlan_on_str)) != 0) {
 		pr_err("Invalid value received from framework");
 		goto exit;
+	}
+
+	if (!hdd_loaded) {
+		if (hdd_driver_load()) {
+			pr_err("%s: Failed to init hdd module\n", __func__);
+			goto exit;
+		}
+
+		/* 
+		 * Systems with Wi-Fi HAL which recognize HDD as module write to /dev/wlan directly 
+		 * without invoking wlan_boot sysfs. Furthermore, if it does not have the module, 
+		 * the system needs to wait for the callback to occur before it is able to write 
+		 * to /dev/wlan since it is only then the directory is initialized based 
+		 * on QCOM's unmodified non-module code.
+		 *
+		 * Thus, it is safe to deinit sysfs if the write to /dev occurs first instead
+		 * of sysfs being invoked first.
+		 */
+		wlan_deinit_sysfs();
 	}
 
 	if (!cds_is_driver_loaded() || cds_is_driver_recovering()) {
@@ -14488,16 +14475,10 @@ static int hdd_driver_load(void)
 
 	hdd_set_conparam(con_mode);
 
-	errno = wlan_hdd_state_ctrl_param_create();
-	if (errno) {
-		hdd_fln("Failed to create ctrl param; errno:%d", errno);
-		goto wakelock_destroy;
-	}
-
 	errno = pld_init();
 	if (errno) {
 		hdd_fln("Failed to init PLD; errno:%d", errno);
-		goto param_destroy;
+		goto wakelock_destroy;
 	}
 
 	errno = wlan_hdd_register_driver();
@@ -14506,6 +14487,7 @@ static int hdd_driver_load(void)
 		goto pld_deinit;
 	}
 
+	hdd_loaded = true;
 	pr_info("%s: driver loaded\n", WLAN_MODULE_NAME);
 
 	return 0;
@@ -14515,8 +14497,6 @@ pld_deinit:
 	/* Wait for any ref taken on /dev/wlan to be released */
 	while (qdf_atomic_read(&wlan_hdd_state_fops_ref))
 		;
-param_destroy:
-	wlan_hdd_state_ctrl_param_destroy();
 wakelock_destroy:
 	qdf_wake_lock_destroy(&wlan_wake_lock);
 comp_deinit:
@@ -14545,10 +14525,8 @@ static void hdd_driver_unload(void)
 	if (!hdd_wait_for_recovery_completion())
 		return;
 
-	mutex_lock(&hdd_init_deinit_lock);
 	cds_set_driver_loaded(false);
 	cds_set_unload_in_progress(true);
-	mutex_unlock(&hdd_init_deinit_lock);
 
 	if (hdd_ctx)
 		hdd_psoc_idle_timer_stop(hdd_ctx);
@@ -14564,7 +14542,6 @@ static void hdd_driver_unload(void)
 	hdd_qdf_print_deinit();
 }
 
-#ifndef MODULE
 /**
  * wlan_boot_cb() - Wlan boot callback
  * @kobj:      object whose directory we're creating the link in.
@@ -14583,7 +14560,7 @@ static ssize_t wlan_boot_cb(struct kobject *kobj,
 			    size_t count)
 {
 
-	if (wlan_loader->loaded_state) {
+	if (wlan_loader->loaded_state || hdd_loaded) {
 		hdd_fln("wlan driver already initialized");
 		return -EALREADY;
 	}
@@ -14688,27 +14665,13 @@ static int wlan_deinit_sysfs(void)
 	return 0;
 }
 
-#endif /* MODULE */
-
-#ifdef MODULE
-/**
- * hdd_module_init() - Module init helper
- *
- * Module init helper function used by both module and static driver.
- *
- * Return: 0 for success, errno on failure
- */
-static int hdd_module_init(void)
-{
-	if (hdd_driver_load())
-		return -EINVAL;
-
-	return 0;
-}
-#else
 static int __init hdd_module_init(void)
 {
 	int ret = -EINVAL;
+
+	ret = wlan_hdd_state_ctrl_param_create();
+	if (ret)
+		pr_err("wlan_hdd_state_create:%x\n", ret);
 
 	ret = wlan_init_sysfs();
 	if (ret)
@@ -14716,28 +14679,12 @@ static int __init hdd_module_init(void)
 
 	return ret;
 }
-#endif
 
-
-#ifdef MODULE
-/**
- * hdd_module_exit() - Exit function
- *
- * This is the driver exit point (invoked when module is unloaded using rmmod)
- *
- * Return: None
- */
-static void __exit hdd_module_exit(void)
-{
-	hdd_driver_unload();
-}
-#else
 static void __exit hdd_module_exit(void)
 {
 	hdd_driver_unload();
 	wlan_deinit_sysfs();
 }
-#endif
 
 #undef hdd_fln
 

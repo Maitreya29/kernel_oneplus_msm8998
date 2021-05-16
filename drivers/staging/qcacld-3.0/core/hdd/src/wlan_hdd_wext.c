@@ -3245,9 +3245,11 @@ static QDF_STATUS hdd_wlan_get_ibss_peer_info(struct hdd_adapter *adapter,
 
 			qdf_mem_copy(mac_addr, pPeerInfo->peerInfoParams[0].
 					mac_addr, sizeof(mac_addr));
+#ifdef WLAN_DEBUG
 			hdd_debug("PEER ADDR : %pM TxRate: %d Mbps  RSSI: %d",
 				mac_addr, (int)tx_rate,
 				(int)pPeerInfo->peerInfoParams[0].rssi);
+#endif
 		}
 	} else {
 		hdd_warn("Warning: sme_request_ibss_peer_info Request failed");
@@ -6468,9 +6470,8 @@ static int __iw_get_char_setnone(struct net_device *dev,
 		}
 		len = scnprintf(buf, WE_MAX_STR_LEN, "%u ",
 				channel_list.num_channels);
-		if (QDF_STATUS_SUCCESS == sme_get_country_code(mac_handle,
-							       ubuf,
-							       &ubuf_len)) {
+		if (SOURCE_UNKNOWN != ucfg_reg_get_cc_and_src(hdd_ctx->psoc,
+							      ubuf)) {
 			/* Printing Country code in getChannelList */
 			for (i = 0; i < (ubuf_len - 1); i++)
 				len += scnprintf(buf + len,
