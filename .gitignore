@@ -9,7 +9,6 @@
 #
 # Normal rules
 #
-.*
 *.o
 *.o.*
 *.a
@@ -124,3 +123,6 @@ android/configs/android-*.cfg
 #Ignoring Android.bp link file
 #
 Android.bp
+clang/
+out/
+log.txt
