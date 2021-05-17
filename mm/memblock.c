@@ -209,14 +209,12 @@ phys_addr_t __init_memblock memblock_find_in_range_node(phys_addr_t size,
 	/* avoid allocating the first page */
 	start = max_t(phys_addr_t, start, PAGE_SIZE);
 	end = max(start, end);
-	
 	if (memblock_bottom_up())
 		return __memblock_find_range_bottom_up(start, end, size, align,
 						       nid, flags);
 	else
 		return __memblock_find_range_top_down(start, end, size, align,
 						      nid, flags);
-
 }
 
 /**
